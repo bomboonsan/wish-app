@@ -24,6 +24,13 @@ const ScratchRevealDrag = ({
   const alreadyTriggeredRef = useRef(false);
   const [isAnimationPlaying, setIsAnimationPlaying] = useState(false);
   const [isAnimationFirsttime, setIsAnimationFirsttime] = useState(true);
+  const [isFinalyTriggered, setIsFinalyTriggered] = useState(false);
+  const [isUsedEraser, setIsUsedEraser] = useState(false);
+  const isUsedEraserRef = useRef(false);
+
+  useEffect(() => {
+    isUsedEraserRef.current = isUsedEraser;
+  }, [isUsedEraser]);
 
   useEffect(() => {
     setIsAnimationPlaying(false);
@@ -44,7 +51,7 @@ const ScratchRevealDrag = ({
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [isEraserVisible, setIsEraserVisible] = useState(false);
-  const [isUsedEraser, setIsUsedEraser] = useState(false);
+  
 
   // Effect to make eraser visible when ready
   useEffect(() => {
@@ -258,6 +265,7 @@ const ScratchRevealDrag = ({
   }, [isLoading, getMousePos, doScratchInternal]);
 
   const handleMoveableDrag = useCallback(({ target, transform, clientX, clientY, inputEvent }) => {
+    console.log('isUsedEraser: ', isUsedEraser);
     if (!isDrawingRef.current || imagesRef.current.loadedCount < 2 || isLoading) return;
     if (inputEvent) inputEvent.preventDefault();
 
@@ -300,8 +308,12 @@ const ScratchRevealDrag = ({
       console.log('ขูดใกล้เสร็จแล้ว');
       console.log('Is frist time: ', isAnimationFirsttime);
       console.log('Is animation playing: ', isAnimationPlaying);
-      setIsAnimationFirsttime(false);
-      setIsAnimationPlaying(true);
+      console.log('isUsedEraser: ', isUsedEraser);
+      if (isUsedEraserRef.current) {
+        setIsAnimationFirsttime(false);
+        setIsAnimationPlaying(true);
+        setIsFinalyTriggered(true);
+      }
       // setTimeout(() => { 
       //   setIsAnimationPlaying(false);  
       // }, 3000);
@@ -347,7 +359,7 @@ const ScratchRevealDrag = ({
       />
       <canvas
         ref={scratchCanvasRef}
-        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'block', zIndex: 2 }}
+        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'block', zIndex: 2, opacity: isFinalyTriggered ? 0 : 1 }}
       />
 
       <div
@@ -355,6 +367,7 @@ const ScratchRevealDrag = ({
         className={!isUsedEraser ? 'animation-blink' : ''}
         style={{
           display: isEraserVisible ? 'block' : 'none',
+          opacity: isFinalyTriggered ? 0 : 1,
           position: 'absolute', // Relative to canvasWrapperRef
           left: '0px', // Initial position X
           top: '0px',  // Initial position Y
@@ -390,20 +403,17 @@ const ScratchRevealDrag = ({
         />
       )}
 
-      {/* <div style={{position: 'absolute', bottom: '5px', left: '5px', fontSize: '10px', color: '#777', zIndex:3}}>
-        Debug: {canvasSize.width}x{canvasSize.height} LD:{imagesRef.current.loadedCount} LoadState:{isLoading?'Loading':'Ready'}
-      </div> */}
-      {isAnimationPlaying && 
+      {isAnimationPlaying && setIsAnimationFirsttime &&
       <>
-      <div className='absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 w-full h-full'>
-        <Lottie animationData={ congratulationAnimation } loop={false} />
-      </div>
+        <div className='absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 w-full h-full'>
+          <Lottie animationData={ congratulationAnimation } loop={false} />
+        </div>
 
-      <div className='absolute top-[26%] left-[39%] transform -translate-x-1/2 -translate-y-1/2 z-50 '>
-        <span className="bg-[#16AFE6] text-white font-bold px-4 py-2 rounded-xl shadow-md text-newlook inline-block">
-          New look
-        </span>
-      </div>
+        <div className='absolute top-[26%] left-[39%] transform -translate-x-1/2 -translate-y-1/2 z-50 '>
+          <span className="bg-[#16AFE6] text-white font-bold px-4 py-2 rounded-xl shadow-md text-newlook inline-block">
+            New look
+          </span>
+        </div>
       </>
       }
       
