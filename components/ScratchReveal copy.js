@@ -26,11 +26,35 @@ const ScratchRevealDrag = ({
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [isLoading, setIsLoading] = useState(true);
 
-  // สร้าง cursor จากไฟล์ GIF
+  // สร้าง cursor เป็นรูปยางลบ
   const createEraserCursor = useCallback(() => {
     const cursorSize = Math.max(20, Math.min(brushSize, 60)); // จำกัดขนาด cursor
-    // ใช้ไฟล์ eraser.gif เป็น cursor โดยกำหนดจุด hotspot ที่กึ่งกลาง
-    return `url('/eraser.gif') ${cursorSize/2} ${cursorSize/2}, auto`;
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    canvas.width = cursorSize;
+    canvas.height = cursorSize;
+    
+    // วาดรูปยางลบ
+    ctx.fillStyle = '#FF6B6B';
+    ctx.fillRect(0, 0, cursorSize, cursorSize * 0.7);
+    
+    // วาดส่วนบนของยางลบ (metallic band)
+    ctx.fillStyle = '#FFD93D';
+    ctx.fillRect(0, 0, cursorSize, cursorSize * 0.2);
+    
+    // เพิ่มเงา
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(cursorSize * 0.8, cursorSize * 0.2, cursorSize * 0.2, cursorSize * 0.5);
+    
+    // วาดขอบ
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0, 0, cursorSize, cursorSize * 0.7);
+    ctx.strokeRect(0, 0, cursorSize, cursorSize * 0.2);
+    
+    const dataURL = canvas.toDataURL();
+    return `url(${dataURL}) ${cursorSize/2} ${cursorSize/2}, auto`;
   }, [brushSize]);
 
   // Alternative: สร้าง cursor แบบวงกลม
@@ -334,8 +358,7 @@ const ScratchRevealDrag = ({
             const canvas = scratchCanvasRef.current;
             if (canvas) {
               const style = canvas.style;
-              // สลับระหว่าง eraser.gif และ circle cursor
-              style.cursor = style.cursor.includes('eraser.gif') ? createCircleCursor() : createEraserCursor();
+              style.cursor = style.cursor.includes('eraser') ? createCircleCursor() : createEraserCursor();
             }
           }}
           style={{

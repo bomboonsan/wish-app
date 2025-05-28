@@ -20,8 +20,12 @@ body {
   align-items: center;
   min-height: 100vh;
   margin: 0;
+  font-family: "Anuphan", sans-serif;
   /* background-color: #f0f0f0; */
 }
+
+
+
 #canvasWrapper {
   position: relative;
   width: clamp(300px, 100vw, 800px);

@@ -3,62 +3,31 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
 const ScratchRevealDrag = ({
-  topImageSrc = '/scratchreveal/nac-long-before.png',
-  bottomImageSrc = '/scratchreveal/nac-long-after.png',
+  topImageSrc = '/scratchreveal/nac-long-before.png', // รูปภาพด้านบน (ที่จะถูกขูด)
+  bottomImageSrc = '/scratchreveal/nac-long-after.png', // รูปภาพพื้นหลัง
   brushSize = 60,
-  aspectRatio = 1,
-  className = '',
+//   aspectRatio = 3 / 2, // สัดส่วนภาพ (กว้าง / สูง), เช่น 600/400
+  aspectRatio = 1 ,
+  className = '', // สำหรับ custom styling ของ div ครอบ
 }) => {
   const bottomCanvasRef = useRef(null);
   const scratchCanvasRef = useRef(null);
-  const canvasWrapperRef = useRef(null);
+  const canvasWrapperRef = useRef(null); // Ref สำหรับ div ที่ครอบ canvas
 
   const isDrawingRef = useRef(false);
-  const lastPosRef = useRef({ x: 0, y: 0 });
+  const lastPosRef = useRef({ x: 0, y: 0 }); // เก็บตำแหน่งล่าสุด {x, y}
   const imagesRef = useRef({
     top: null,
     bottom: null,
     loadedCount: 0,
-    topSrc: topImageSrc,
-    bottomSrc: bottomImageSrc,
+    topSrc: topImageSrc, // เก็บ src ปัจจุบัน
+    bottomSrc: bottomImageSrc, // เก็บ src ปัจจุบัน
   });
 
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [isLoading, setIsLoading] = useState(true);
 
-  // สร้าง cursor จากไฟล์ GIF
-  const createEraserCursor = useCallback(() => {
-    const cursorSize = Math.max(20, Math.min(brushSize, 60)); // จำกัดขนาด cursor
-    // ใช้ไฟล์ eraser.gif เป็น cursor โดยกำหนดจุด hotspot ที่กึ่งกลาง
-    return `url('/eraser.gif') ${cursorSize/2} ${cursorSize/2}, auto`;
-  }, [brushSize]);
-
-  // Alternative: สร้าง cursor แบบวงกลม
-  const createCircleCursor = useCallback(() => {
-    const cursorSize = Math.max(20, Math.min(brushSize, 60));
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    
-    canvas.width = cursorSize;
-    canvas.height = cursorSize;
-    
-    // วาดวงกลมใส
-    ctx.strokeStyle = '#FF6B6B';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(cursorSize/2, cursorSize/2, (cursorSize-4)/2, 0, Math.PI * 2);
-    ctx.stroke();
-    
-    // เพิ่มจุดตรงกลาง
-    ctx.fillStyle = '#FF6B6B';
-    ctx.beginPath();
-    ctx.arc(cursorSize/2, cursorSize/2, 2, 0, Math.PI * 2);
-    ctx.fill();
-    
-    const dataURL = canvas.toDataURL();
-    return `url(${dataURL}) ${cursorSize/2} ${cursorSize/2}, auto`;
-  }, [brushSize]);
-
+  // ฟังก์ชันวาดรูปภาพ (memoized)
   const drawImages = useCallback(() => {
     const bottomCanvas = bottomCanvasRef.current;
     const scratchCanvas = scratchCanvasRef.current;
@@ -79,33 +48,38 @@ const ScratchRevealDrag = ({
     const ctx = scratchCanvas.getContext('2d');
     if (!bottomCtx || !ctx) return;
 
+    // ตั้งค่าขนาด drawing surface ของ canvas
     bottomCanvas.width = canvasSize.width;
     bottomCanvas.height = canvasSize.height;
     scratchCanvas.width = canvasSize.width;
     scratchCanvas.height = canvasSize.height;
 
+    // วาดรูปภาพพื้นหลัง
     bottomCtx.drawImage(bottomImage, 0, 0, canvasSize.width, canvasSize.height);
 
+    // วาดรูปภาพด้านบน (จะรีเซ็ตการขูดเมื่อปรับขนาด)
     ctx.globalCompositeOperation = 'source-over';
     ctx.drawImage(topImage, 0, 0, canvasSize.width, canvasSize.height);
 
     console.log(`Canvas redrawn to: ${canvasSize.width}x${canvasSize.height}`);
-    setIsLoading(false);
-  }, [canvasSize]);
+    setIsLoading(false); // ซ่อน loading indicator หลังจากวาดครั้งแรก
+  }, [canvasSize]); // ขึ้นอยู่กับ canvasSize เท่านั้น
 
+  // Effect สำหรับโหลดรูปภาพเริ่มต้น หรือเมื่อ src เปลี่ยน
   useEffect(() => {
+    // ตรวจสอบว่า src เปลี่ยนไปจริงหรือไม่
     if (imagesRef.current.topSrc === topImageSrc && imagesRef.current.bottomSrc === bottomImageSrc && imagesRef.current.loadedCount === 2) {
-      return;
+      return; // ไม่ต้องโหลดใหม่ถ้า src ไม่เปลี่ยนและโหลดเสร็จแล้ว
     }
 
     setIsLoading(true);
-    imagesRef.current.loadedCount = 0;
+    imagesRef.current.loadedCount = 0; // รีเซ็ตจำนวนรูปที่โหลด
 
     const topImg = new Image();
     const bottomImg = new Image();
     imagesRef.current.top = topImg;
     imagesRef.current.bottom = bottomImg;
-    imagesRef.current.topSrc = topImageSrc;
+    imagesRef.current.topSrc = topImageSrc; // อัปเดต src ที่เก็บไว้
     imagesRef.current.bottomSrc = bottomImageSrc;
 
     let currentLoadedCount = 0;
@@ -114,6 +88,9 @@ const ScratchRevealDrag = ({
       imagesRef.current.loadedCount = currentLoadedCount;
       if (currentLoadedCount === 2) {
         console.log('All images loaded');
+        // การวาดจะถูก trigger โดย useEffect ที่ขึ้นกับ canvasSize และ imagesRef.current.loadedCount
+        // ถ้า canvasSize มีค่าแล้ว (จาก ResizeObserver) การวาดจะเกิดขึ้น
+        // ถ้ายังไม่มี ResizeObserver จะคำนวณขนาดเริ่มต้น
         if (canvasWrapperRef.current && (canvasSize.width === 0 || canvasSize.height === 0)) {
           const wrapper = canvasWrapperRef.current;
           const newWidth = wrapper.clientWidth;
@@ -122,6 +99,7 @@ const ScratchRevealDrag = ({
             setCanvasSize({ width: newWidth, height: newHeight });
           }
         } else if (canvasSize.width > 0 && canvasSize.height > 0) {
+            // ถ้า canvasSize มีค่าแล้ว ให้เรียก drawImages โดยตรง
             drawImages();
         }
       }
@@ -141,8 +119,9 @@ const ScratchRevealDrag = ({
     topImg.src = topImageSrc;
     bottomImg.src = bottomImageSrc;
 
-  }, [topImageSrc, bottomImageSrc, aspectRatio, drawImages, canvasSize.width, canvasSize.height]);
+  }, [topImageSrc, bottomImageSrc, aspectRatio, drawImages, canvasSize.width, canvasSize.height]); // เพิ่ม drawImages และ canvasSize dimensions ใน dependency
 
+  // Effect สำหรับ ResizeObserver
   useEffect(() => {
     const wrapper = canvasWrapperRef.current;
     if (!wrapper) return;
@@ -167,24 +146,28 @@ const ScratchRevealDrag = ({
 
     resizeObserver.observe(wrapper);
 
+    // คำนวณขนาดเริ่มต้นเมื่อ mount
     const initialWidth = wrapper.clientWidth;
     if (initialWidth > 0) {
         const initialHeight = initialWidth / aspectRatio;
         setCanvasSize({ width: initialWidth, height: initialHeight });
     }
 
+
     return () => {
       resizeObserver.unobserve(wrapper);
       resizeObserver.disconnect();
     };
-  }, [aspectRatio]);
+  }, [aspectRatio]); // Re-run if aspectRatio changes
 
+  // Effect สำหรับวาดรูปภาพเมื่อ canvasSize เปลี่ยน หรือรูปภาพโหลดเสร็จ
   useEffect(() => {
     if (imagesRef.current.loadedCount === 2 && canvasSize.width > 0 && canvasSize.height > 0) {
       drawImages();
     }
-  }, [canvasSize, drawImages]);
+  }, [canvasSize, drawImages]); // ขึ้นอยู่กับ canvasSize และ drawImages (ซึ่ง memoized)
 
+  // Effect สำหรับตรรกะการขูด (scratching logic)
   useEffect(() => {
     const scratchCanvas = scratchCanvasRef.current;
     if (!scratchCanvas || canvasSize.width === 0 || canvasSize.height === 0) return;
@@ -230,11 +213,11 @@ const ScratchRevealDrag = ({
 
     const startScratch = (e) => {
       if (imagesRef.current.loadedCount < 2 || isLoading) return;
-      e.preventDefault();
+      e.preventDefault(); // ป้องกันพฤติกรรมเริ่มต้นเมื่อเริ่มสัมผัส/คลิก
       isDrawingRef.current = true;
       const pos = getMousePos(e);
       lastPosRef.current = pos;
-      doScratchInternal(pos, true);
+      doScratchInternal(pos, true); // สำหรับการคลิก/แตะครั้งเดียว
     };
 
     const endScratch = (e) => {
@@ -245,16 +228,18 @@ const ScratchRevealDrag = ({
 
     const handleMove = (e) => {
       if (!isDrawingRef.current || imagesRef.current.loadedCount < 2 || isLoading) return;
-      e.preventDefault();
+      e.preventDefault(); // ป้องกันการ scroll ขณะลากนิ้ว/เมาส์บน canvas
       const pos = getMousePos(e);
       doScratchInternal(pos);
     };
     
+    // Mouse events
     scratchCanvas.addEventListener('mousedown', startScratch);
     scratchCanvas.addEventListener('mouseup', endScratch);
     scratchCanvas.addEventListener('mousemove', handleMove);
-    scratchCanvas.addEventListener('mouseleave', endScratch);
+    scratchCanvas.addEventListener('mouseleave', endScratch); // สิ้นสุดการวาดถ้าเมาส์ออกจาก canvas
 
+    // Touch events
     scratchCanvas.addEventListener('touchstart', startScratch, { passive: false });
     scratchCanvas.addEventListener('touchend', endScratch, { passive: false });
     scratchCanvas.addEventListener('touchmove', handleMove, { passive: false });
@@ -268,7 +253,7 @@ const ScratchRevealDrag = ({
       scratchCanvas.removeEventListener('touchend', endScratch);
       scratchCanvas.removeEventListener('touchmove', handleMove);
     };
-  }, [brushSize, canvasSize, isLoading]);
+  }, [brushSize, canvasSize, isLoading]); // Re-attach if brushSize, canvasSize, or isLoading changes
 
   return (
     <div
@@ -276,10 +261,11 @@ const ScratchRevealDrag = ({
       className={className}
       style={{
         position: 'relative',
-        width: '100%',
-        height: canvasSize.width > 0 ? `${canvasSize.height}px` : 'auto',
-        overflow: 'hidden',
-        touchAction: 'none',
+        width: '100%', // ให้ div ครอบกว้างเต็มพื้นที่ parent
+        // height จะถูกกำหนดโดย aspectRatio และความกว้างที่คำนวณได้
+        height: canvasSize.width > 0 ? `${canvasSize.height}px` : 'auto', // หรือ fallback height เช่น '200px'
+        overflow: 'hidden', // ป้องกัน canvas ล้นออกนอกกรอบ
+        touchAction: 'none', // ช่วยป้องกันการ scroll บน mobile ขณะ interact กับ canvas โดยตรง
       }}
     >
       {isLoading && (
@@ -297,8 +283,8 @@ const ScratchRevealDrag = ({
           position: 'absolute',
           top: 0,
           left: 0,
-          width: '100%',
-          height: '100%',
+          width: '100%', // ให้ canvas ขยายเต็ม div ครอบ
+          height: '100%',// ให้ canvas ขยายเต็ม div ครอบ
           display: 'block',
           zIndex: 1,
         }}
@@ -309,49 +295,13 @@ const ScratchRevealDrag = ({
           position: 'absolute',
           top: 0,
           left: 0,
-          width: '100%',
-          height: '100%',
-          cursor: createEraserCursor(), // ใช้ custom eraser cursor
+          width: '100%', // ให้ canvas ขยายเต็ม div ครอบ
+          height: '100%',// ให้ canvas ขยายเต็ม div ครอบ
+          cursor: 'crosshair',
           display: 'block',
           zIndex: 2,
         }}
       />
-      
-      {/* Control Panel สำหรับทดสอบ */}
-      <div style={{
-        position: 'absolute',
-        top: '10px',
-        right: '10px',
-        background: 'rgba(255,255,255,0.9)',
-        padding: '10px',
-        borderRadius: '8px',
-        fontSize: '12px',
-        zIndex: 4
-      }}>
-        <div>Brush Size: {brushSize}px</div>
-        <button
-          onClick={() => {
-            const canvas = scratchCanvasRef.current;
-            if (canvas) {
-              const style = canvas.style;
-              // สลับระหว่าง eraser.gif และ circle cursor
-              style.cursor = style.cursor.includes('eraser.gif') ? createCircleCursor() : createEraserCursor();
-            }
-          }}
-          style={{
-            marginTop: '5px',
-            padding: '5px 10px',
-            fontSize: '10px',
-            backgroundColor: '#FF6B6B',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
-          }}
-        >
-          Toggle Cursor
-        </button>
-      </div>
     </div>
   );
 };
