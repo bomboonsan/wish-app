@@ -52,3 +52,22 @@ canvas {
   display: block;
   cursor: crosshair;
 }
+
+.text-title {
+  font-size: clamp(1.5rem, 5vw, 2.25rem);
+}
+
+.text-ref {
+  font-size: clamp(.5rem, 3vw, 2rem);
+}
+
+.text-newlook {
+  font-size: clamp(2rem, 5vw, 3rem);
+  animation: newlook 1.5s infinite;
+}
+
+@keyframes newlook {
+  50% { 
+    transform: rotate(5deg) scale(1.1);      
+  }
+}

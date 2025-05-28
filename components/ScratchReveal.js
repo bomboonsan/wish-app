@@ -3,18 +3,32 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Moveable from 'react-moveable';
 
+import Lottie from "lottie-react";
+// import congratulationAnimation from "../public/scratchreveal/congratulation.json";
+import congratulationAnimation from "../public/scratchreveal/bubble.json";
+
 const ScratchRevealDrag = ({
   topImageSrc = '/scratchreveal/nac-long-before.png',
   bottomImageSrc = '/scratchreveal/nac-long-after.png',
   brushSize = 100,
   aspectRatio = 1,
   className = '',
-  eraserImageSrc = '/scratchreveal/eraser-2.webp', // User updated to .gif
+  // eraserImageSrc = '/scratchreveal/eraser-2.webp', // User updated to .gif
+  eraserImageSrc = '/scratchreveal/eraser-4.gif', // User updated to .gif
 }) => {
   const bottomCanvasRef = useRef(null);
   const scratchCanvasRef = useRef(null);
   const canvasWrapperRef = useRef(null);
   const eraserVisualRef = useRef(null);
+
+  const alreadyTriggeredRef = useRef(false);
+  const [isAnimationPlaying, setIsAnimationPlaying] = useState(false);
+  const [isAnimationFirsttime, setIsAnimationFirsttime] = useState(true);
+
+  useEffect(() => {
+    setIsAnimationPlaying(false);
+    setIsAnimationFirsttime(true);
+  }, []);
 
   const isDrawingRef = useRef(false);
   const lastPosRef = useRef({ x: 0, y: 0 });
@@ -25,6 +39,7 @@ const ScratchRevealDrag = ({
     _currentTopSrc: null,
     _currentBottomSrc: null,
   });
+
 
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [isLoading, setIsLoading] = useState(true);
@@ -203,6 +218,9 @@ const ScratchRevealDrag = ({
   }, []);
 
   const doScratchInternal = useCallback((currentPos, isSinglePoint = false) => {
+
+    checkScratchPercentage();
+
     const canvas = scratchCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -258,6 +276,44 @@ const ScratchRevealDrag = ({
     isDrawingRef.current = false;
     console.log('[Moveable endScratch] Drawing ended.');
     // Do not hide eraser: setIsEraserVisible(false);
+  }, []);
+
+  const checkScratchPercentage = () => {
+    const canvas = scratchCanvasRef.current;
+    if (!canvas) return;
+  
+    const ctx = canvas.getContext('2d');
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const pixels = imageData.data;
+    const totalPixels = pixels.length / 4;
+  
+    let transparentPixels = 0;
+    for (let i = 0; i < pixels.length; i += 4) {
+      const alpha = pixels[i + 3]; // ค่าความโปร่งใส
+      if (alpha === 0) {
+        transparentPixels++;
+      }
+    }
+  
+    const percent = (transparentPixels / totalPixels) * 100;
+    if (percent >= 50 && !isAnimationPlaying && isAnimationFirsttime) {
+      console.log('ขูดใกล้เสร็จแล้ว');
+      console.log('Is frist time: ', isAnimationFirsttime);
+      console.log('Is animation playing: ', isAnimationPlaying);
+      setIsAnimationFirsttime(false);
+      setIsAnimationPlaying(true);
+      // setTimeout(() => { 
+      //   setIsAnimationPlaying(false);  
+      // }, 3000);
+    }
+    if (percent >= 50 && !alreadyTriggeredRef.current) {
+      alreadyTriggeredRef.current = true;
+    }
+  };
+
+  useEffect(() => {
+    const interval = setInterval(checkScratchPercentage, 500); // ตรวจสอบทุก 100 มิลิวินาที
+    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -337,6 +393,20 @@ const ScratchRevealDrag = ({
       {/* <div style={{position: 'absolute', bottom: '5px', left: '5px', fontSize: '10px', color: '#777', zIndex:3}}>
         Debug: {canvasSize.width}x{canvasSize.height} LD:{imagesRef.current.loadedCount} LoadState:{isLoading?'Loading':'Ready'}
       </div> */}
+      {isAnimationPlaying && 
+      <>
+      <div className='absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 w-full h-full'>
+        <Lottie animationData={ congratulationAnimation } loop={false} />
+      </div>
+
+      <div className='absolute top-[26%] left-[39%] transform -translate-x-1/2 -translate-y-1/2 z-50 '>
+        <span className="bg-[#16AFE6] text-white font-bold px-4 py-2 rounded-xl shadow-md text-newlook inline-block">
+          New look
+        </span>
+      </div>
+      </>
+      }
+      
     </div>
   );
 };
