@@ -1,20 +1,20 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import Moveable from 'react-moveable';
+import Moveable from 'react-moveable'; // 1. เพิ่ม react-moveable
 
 const ScratchRevealDrag = ({
   topImageSrc = '/scratchreveal/nac-long-before.png',
   bottomImageSrc = '/scratchreveal/nac-long-after.png',
-  brushSize = 100,
+  brushSize = 60,
   aspectRatio = 1,
   className = '',
-  eraserImageSrc = '/scratchreveal/eraser-2.webp', // User updated to .gif
+  eraserImageSrc = '/scratchreveal/eraser.gif', // 2. Prop สำหรับรูปยางลบ
 }) => {
   const bottomCanvasRef = useRef(null);
   const scratchCanvasRef = useRef(null);
   const canvasWrapperRef = useRef(null);
-  const eraserVisualRef = useRef(null);
+  const eraserVisualRef = useRef(null); // 3. Ref สำหรับ div ยางลบ
 
   const isDrawingRef = useRef(false);
   const lastPosRef = useRef({ x: 0, y: 0 });
@@ -28,21 +28,9 @@ const ScratchRevealDrag = ({
 
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [isLoading, setIsLoading] = useState(true);
-  const [isEraserVisible, setIsEraserVisible] = useState(false);
-  const [isUsedEraser, setIsUsedEraser] = useState(false);
+  const [isEraserVisible, setIsEraserVisible] = useState(false); // 4. State ควบคุมการแสดงยางลบ
 
-  // Effect to make eraser visible when ready
-  useEffect(() => {
-    if (!isLoading && imagesRef.current.loadedCount === 2) {
-      setIsEraserVisible(true);
-      if (eraserVisualRef.current) {
-        // Ensure initial transform is set if Moveable doesn't set it before first drag
-        eraserVisualRef.current.style.transform = 'translate(0px, 0px)';
-      }
-    }
-  }, [isLoading, imagesRef.current.loadedCount]);
-
-
+  // ฟังก์ชันวาดรูปภาพ (memoized) - ไม่เปลี่ยนแปลงจากเดิมมากนัก
   const drawImages = useCallback(() => {
     console.log('[drawImages] Called. CanvasSize:', canvasSize);
     const bottomCanvas = bottomCanvasRef.current;
@@ -85,10 +73,10 @@ const ScratchRevealDrag = ({
     console.log('[drawImages] setIsLoading(false). isLoading is now false.');
   }, [canvasSize]);
 
+  // Effect สำหรับโหลดรูปภาพ - ไม่เปลี่ยนแปลงจากเดิม
   useEffect(() => {
     console.log('[useEffect ImageLoad] Triggered. New srcs:', topImageSrc, bottomImageSrc);
     setIsLoading(true);
-    setIsEraserVisible(false); // Hide eraser while loading new images
     console.log('[useEffect ImageLoad] setIsLoading(true).');
     imagesRef.current.loadedCount = 0;
     imagesRef.current.top = new Image();
@@ -143,6 +131,7 @@ const ScratchRevealDrag = ({
     console.log('[useEffect ImageLoad] Image sources set.');
   }, [topImageSrc, bottomImageSrc, aspectRatio]);
 
+  // Effect สำหรับ ResizeObserver - ไม่เปลี่ยนแปลงจากเดิม
   useEffect(() => {
     const wrapper = canvasWrapperRef.current;
     if (!wrapper) return;
@@ -171,13 +160,14 @@ const ScratchRevealDrag = ({
     }
     return () => {
       console.log('[useEffect ResizeObserver] Cleaning up observer.');
-      if (wrapper) {
+      if (wrapper) { // Check if wrapper still exists
         resizeObserver.unobserve(wrapper);
       }
       resizeObserver.disconnect();
     };
-  }, [aspectRatio, canvasSize.width, canvasSize.height]);
+  }, [aspectRatio, canvasSize.width, canvasSize.height]); // Added canvasSize to dependencies for initial check
 
+  // Effect to draw images when canvasSize is ready and images are loaded - ไม่เปลี่ยนแปลงจากเดิม
   useEffect(() => {
     console.log(`[useEffect DrawTrigger] Checking conditions. LoadedCount: ${imagesRef.current.loadedCount}, Canvas: ${canvasSize.width}x${canvasSize.height}`);
     if (imagesRef.current.loadedCount === 2 && canvasSize.width > 0 && canvasSize.height > 0) {
@@ -189,6 +179,8 @@ const ScratchRevealDrag = ({
     }
   }, [canvasSize, imagesRef.current.loadedCount, drawImages, isLoading]);
 
+
+  // ฟังก์ชันแปลงพิกัดเมาส์/นิ้ว ไปเป็นพิกัดบน canvas (memoized)
   const getMousePos = useCallback((eventData) => {
     const canvas = scratchCanvasRef.current;
     if (!canvas) return null;
@@ -200,18 +192,24 @@ const ScratchRevealDrag = ({
       x: (clientX - rect.left) * scaleX,
       y: (clientY - rect.top) * scaleY,
     };
-  }, []);
+  }, []); // No dependencies needed as refs are stable
 
+  // ฟังก์ชันขูดภาพภายใน (memoized)
   const doScratchInternal = useCallback((currentPos, isSinglePoint = false) => {
     const canvas = scratchCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+
+    // console.log('[doScratchInternal] Pos:', currentPos, 'isSinglePoint:', isSinglePoint, 'Brush:', brushSize);
+    // console.log('[doScratchInternal] Current GCO before setting:', ctx.globalCompositeOperation);
     ctx.globalCompositeOperation = 'destination-out';
+    // console.log('[doScratchInternal] GCO after setting:', ctx.globalCompositeOperation);
     ctx.beginPath();
     if (isSinglePoint) {
       ctx.arc(currentPos.x, currentPos.y, brushSize / 2, 0, Math.PI * 2);
       ctx.fill();
+      // console.log('[doScratchInternal] Arc filled.');
     } else {
       ctx.moveTo(lastPosRef.current.x, lastPosRef.current.y);
       ctx.lineTo(currentPos.x, currentPos.y);
@@ -219,15 +217,14 @@ const ScratchRevealDrag = ({
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.stroke();
+      // console.log('[doScratchInternal] Line stroked from', lastPosRef.current, 'to', currentPos);
     }
-  }, [brushSize]);
+  }, [brushSize]); // Depends on brushSize
 
-  const handleMoveableDragStart = useCallback(({ clientX, clientY, inputEvent, target }) => {
-
-    setIsUsedEraser(true);
-
+  // 5. Event handlers สำหรับ react-moveable
+  const handleMoveableDragStart = useCallback(({ clientX, clientY, inputEvent }) => {
     if (imagesRef.current.loadedCount < 2 || isLoading) return;
-    if (inputEvent) inputEvent.preventDefault();
+    if (inputEvent) inputEvent.preventDefault(); // Check if inputEvent exists
     isDrawingRef.current = true;
 
     const pos = getMousePos({ clientX, clientY });
@@ -236,29 +233,40 @@ const ScratchRevealDrag = ({
     console.log('[Moveable startScratch] Drawing started. Pos:', pos);
     lastPosRef.current = pos;
     doScratchInternal(pos, true);
-    // No need to setIsEraserVisible(true) as it's controlled by isLoading and loadedCount
-  }, [isLoading, getMousePos, doScratchInternal]);
 
-  const handleMoveableDrag = useCallback(({ target, transform, clientX, clientY, inputEvent }) => {
+    if (eraserVisualRef.current) {
+      // Center eraser image on cursor
+      eraserVisualRef.current.style.left = `${clientX - brushSize / 2}px`;
+      eraserVisualRef.current.style.top = `${clientY - brushSize / 2}px`;
+      setIsEraserVisible(true);
+    }
+  }, [isLoading, getMousePos, doScratchInternal, brushSize]);
+
+  const handleMoveableDrag = useCallback(({ clientX, clientY, inputEvent }) => {
     if (!isDrawingRef.current || imagesRef.current.loadedCount < 2 || isLoading) return;
-    if (inputEvent) inputEvent.preventDefault();
-
-    target.style.transform = transform; // Apply transform to the eraser div
+    if (inputEvent) inputEvent.preventDefault(); // Check if inputEvent exists
 
     const pos = getMousePos({ clientX, clientY });
     if (!pos) return;
 
     doScratchInternal(pos, false);
     lastPosRef.current = pos;
-  }, [isLoading, getMousePos, doScratchInternal]);
+
+    if (eraserVisualRef.current) {
+      eraserVisualRef.current.style.left = `${clientX - brushSize / 2}px`;
+      eraserVisualRef.current.style.top = `${clientY - brushSize / 2}px`;
+    }
+  }, [isLoading, getMousePos, doScratchInternal, brushSize]);
 
   const handleMoveableDragEnd = useCallback(({ inputEvent }) => {
     if (!isDrawingRef.current) return;
-    if (inputEvent) inputEvent.preventDefault();
+    if (inputEvent) inputEvent.preventDefault(); // Check if inputEvent exists
     isDrawingRef.current = false;
     console.log('[Moveable endScratch] Drawing ended.');
-    // Do not hide eraser: setIsEraserVisible(false);
+    setIsEraserVisible(false);
   }, []);
+
+  // 6. ลบ useEffect เดิมที่ใช้สำหรับ scratch interaction logic ออกไป
 
   return (
     <div
@@ -270,10 +278,26 @@ const ScratchRevealDrag = ({
         height: canvasSize.width > 0 ? `${canvasSize.height}px` : 'auto',
         minHeight: '100px',
         overflow: 'hidden',
-        touchAction: 'none',
-        // border: '1px solid #ccc', // Kept commented as per user's code
-        // backgroundColor: '#f0f0f0', // Kept commented
-        cursor: isEraserVisible ? 'grab' : 'default', // Change cursor when eraser is active
+        touchAction: 'none', // Important for touch interactions with Moveable
+        // border: '1px solid #ccc',
+        // backgroundColor: '#f0f0f0',
+        cursor: isEraserVisible ? 'none' : 'crosshair', // Hide default cursor when eraser is visible
+      }}
+      onMouseEnter={() => {
+        if (imagesRef.current.loadedCount === 2 && !isLoading && eraserVisualRef.current) {
+            // setIsEraserVisible(true); // Consider enabling this for hover effect
+        }
+      }}
+      onMouseLeave={() => {
+        if (!isDrawingRef.current) {
+            // setIsEraserVisible(false); // Consider enabling this for hover effect
+        }
+      }}
+      onMouseMove={(e) => {
+        if (!isDrawingRef.current && isEraserVisible && eraserVisualRef.current) {
+            eraserVisualRef.current.style.left = `${e.clientX - brushSize / 2}px`;
+            eraserVisualRef.current.style.top = `${e.clientY - brushSize / 2}px`;
+        }
       }}
     >
       {isLoading && (
@@ -294,43 +318,33 @@ const ScratchRevealDrag = ({
         style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'block', zIndex: 2 }}
       />
 
+      {/* 7. Visual Eraser Element */}
       <div
         ref={eraserVisualRef}
-        className={!isUsedEraser ? 'animation-blink' : ''}
         style={{
           display: isEraserVisible ? 'block' : 'none',
-          position: 'absolute', // Relative to canvasWrapperRef
-          left: '0px', // Initial position X
-          top: '0px',  // Initial position Y
-          width: `${brushSize}px`,
+          position: 'fixed', // Fixed position to follow mouse across viewport
+          width: `${brushSize}px`, // Eraser visual size
           height: `${brushSize}px`,
           backgroundImage: `url(${eraserImageSrc})`,
           backgroundSize: 'contain',
           backgroundRepeat: 'no-repeat',
-          borderRadius: '10%', // Kept from user's code
-          // pointerEvents: 'none', // REMOVED to allow dragging the eraser itself
-          zIndex: 10,
-          // transform will be applied by Moveable
-          cursor: 'grab', // Indicate it's draggable
+          borderRadius: '10%',
+          pointerEvents: 'none', // VERY IMPORTANT: Allows events to pass through to Moveable target
+          zIndex: 10, // Ensure it's on top of other elements
         }}
       />
 
-      {isEraserVisible && eraserVisualRef.current && ( // Render Moveable only when eraser is visible and ref is set
+      {/* 8. Moveable Component */}
+      {imagesRef.current.loadedCount === 2 && !isLoading && canvasSize.width > 0 && canvasWrapperRef.current && (
         <Moveable
-            target={eraserVisualRef.current} // Target the eraser div itself
+            origin={false}
+            target={canvasWrapperRef.current} // Target the wrapper div
             draggable={true}
-            edge={false}
-            container={null}
-            origin={false} // Kept from user's code
             throttleDrag={0}
             onDragStart={handleMoveableDragStart}
             onDrag={handleMoveableDrag}
             onDragEnd={handleMoveableDragEnd}
-            // Optional: Keep eraser within its parent bounds
-            // bounds={{ left:0, top:0, right: canvasSize.width - brushSize, bottom: canvasSize.height - brushSize }}
-            // snappable={true}
-            // snapCenter={true}
-            hideDefaultLines={true}
         />
       )}
 
