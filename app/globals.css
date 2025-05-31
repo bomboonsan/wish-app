@@ -58,7 +58,11 @@ canvas {
 }
 
 .text-ref {
-  font-size: clamp(.5rem, 3vw, 2rem);
+  font-size: clamp(.5rem, 3vw, 1.6rem);
+}
+
+.text-serial-number {
+  font-size: clamp(.5rem, 3vw, 1.2rem);
 }
 
 .text-newlook {

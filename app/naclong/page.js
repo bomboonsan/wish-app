@@ -38,11 +38,18 @@ export default function ScratchRevealPage() {
         <div className='text-[#35BDF0] text-ref font-medium relative bottom-[20%] z-50 flex justify-between px-2'>
           <div>
             <p>มีตัวยา Acetylcysteine 600mg</p>
-            <p>ใบอนุญาตโฆษณาเลขที่ ฆท xx/2568</p>
+            <p>สำหรับผู้ประกอบโรคศิลปะ</p>
+            <p>ใบอนุญาตโฆษณาเลขที่ ฆศ.2-5088/2568</p>
           </div>
           <div>
             <p>Reg. No. 1C 57/49</p>
           </div>
+        </div>
+
+        <div>
+          <p className='text-[#35BDF0] -mt-10 text-serial-number font-medium relative bottom-[20%] z-50 flex justify-between px-2'>
+            TH-NAC-052025-003
+          </p>
         </div>
           
       </div>
